@@ -36,11 +36,11 @@ obj/%.o: %.asm obj
 	nasm $< -f elf -o $@
 
 obj_folder:
-	mkdir obj
-	mkdir obj/boot
-	mkdir obj/kernel
-	mkdir obj/cpu
-	mkdir obj/drivers
+	mkdir -p obj
+	mkdir -p obj/boot
+	mkdir -p obj/kernel
+	mkdir -p obj/cpu
+	mkdir -p obj/drivers
 
 run: os-image.bin kernel.elf
 	qemu-system-i386 -fda $< -monitor stdio -s
