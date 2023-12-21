@@ -4,6 +4,9 @@ OBJS = ${C_SOURCES:.c=.o obj/cpu/interrupt.o}
 
 CC = i686-elf-gcc
 LD = i686-elf-ld
+DB = i686-elf-gdb
+EM = qemu-system-i386
+EFLAGS = -monitor stdio -s
 CFLAGS = -m32 -g -ffreestanding -fno-pie -O0 -nolibc
 
 all: run
@@ -15,7 +18,7 @@ obj/boot/kernel_entry.o: boot/kernel_entry.asm obj_folder
 	nasm $< -f elf -o $@
 
 obj/kernel.o:kernel/kernel.c
-	$(CC) ($CFLAGS) -c $^ -o $@ 
+	$(CC) $(CFLAGS) -c $^ -o $@ 
 
 kernel.elf: obj/boot/kernel_entry.o ${OBJS}
 	$(LD) -s -o $@ -Ttext 0x1000 $^
@@ -43,9 +46,9 @@ obj_folder:
 	mkdir -p obj/drivers
 
 run: os-image.bin kernel.elf
-	qemu-system-i386 -fda $< -monitor stdio -s
+	$(EM) $(EFLAGS) -fda $<
 
 debug: os-image.bin kernel.elf
-	qemu-system-i686 $< -s -S & gdb -ex "set architecture i386" -ex "target remote localhost:1234" -ex "symbol-file kernel.elf"
+	qemu-system-i386 $< -s -S & gdb -ex "set architecture i386" -ex "target remote localhost:1234" -ex "symbol-file kernel.elf"
 clean: 
 	rm -rf obj
