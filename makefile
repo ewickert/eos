@@ -11,7 +11,7 @@ CFLAGS = -m32 -g -ffreestanding -fno-pie -O0 -nolibc
 
 all: run
 
-kernel.bin: obj/boot/kernel_entry.o ${OBJS}
+bin/kernel.bin: obj/boot/kernel_entry.o ${OBJS}
 	$(LD) -m elf_i386 -s -o $@ -Ttext 0x1000 $^ --oformat binary 
 
 obj/boot/kernel_entry.o: boot/kernel_entry.asm obj_folder
@@ -20,13 +20,13 @@ obj/boot/kernel_entry.o: boot/kernel_entry.asm obj_folder
 obj/kernel.o:kernel/kernel.c
 	$(CC) $(CFLAGS) -c $^ -o $@ 
 
-kernel.elf: obj/boot/kernel_entry.o ${OBJS}
+bin/kernel.elf: obj/boot/kernel_entry.o ${OBJS}
 	$(LD) -s -o $@ -Ttext 0x1000 $^
 
-mbr.bin: boot/mbr.asm
+obj/mbr.bin: boot/mbr.asm obj_folder
 	nasm $< -f bin -o $@
 
-os-image.bin: mbr.bin kernel.bin
+bin/os-image.bin: obj/mbr.bin bin/kernel.bin
 	cat $^ > $@
 
 obj/%.o: %.c ${HEADERS} obj_folder
@@ -44,8 +44,9 @@ obj_folder:
 	mkdir -p obj/kernel
 	mkdir -p obj/cpu
 	mkdir -p obj/drivers
+	mkdir -p bin
 
-run: os-image.bin kernel.elf
+run: bin/os-image.bin bin/kernel.elf
 	$(EM) $(EFLAGS) -fda $<
 
 debug: os-image.bin kernel.elf
