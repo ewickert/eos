@@ -1,15 +1,25 @@
 #include "../drivers/vga.h"
+#include "../drivers/com.h"
 #include "../cpu/isr.h"
+#include "../cpu/gdt.h"
+#include "../cpu/idt.h"
+#include "../cpu/clock.h"
 #include "../drivers/keyboard.h"
-void _start()
+#include "../lib/stdlib.h"
+#include "../lib/string.h"
+extern uint32_t endkernel;
+extern uint32_t code;
+
+void kernel_main()
 {
-    const char init_msg[] = "Initializing os\n";
-    clear_screen();
-    print_string("Initializing os\n"); // good
-    isr_install();
-    print_string("Enable external interrupts\n");
-    asm volatile("sti");
-    print_string("init keyboard\n");
+
+    kcls();
+    kputl("Hello, world");
+    // set_cursor(0);
+    gdt_init();
+    kerr_ln("GDT set");
+    idt_init();
+    kerr_ln("IDT set");
     init_keyboard();
-    clear_screen();
+    init_timer(1000);
 }
