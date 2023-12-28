@@ -3,4 +3,4 @@
 
 void print_letter(uint8_t scancode);
 void init_keyboard();
-static void keyboard_callback(registers_t *regs);
+static void keyboard_callback(registers_t regs);

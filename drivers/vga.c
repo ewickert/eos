@@ -1,100 +1,131 @@
 #include "vga.h"
-void set_cursor(int offset)
+#include "io.h"
+#include <stdint.h>
+
+#define FRAMEB 0xB8000
+#define C_REG 0x3D4
+#define C_SET_HIGH 14
+#define C_SET_LOW 15
+#define D_REG 0x3D5
+#define GET_OFFSET(x, y) ((uint16_t)((y * 80 + x)))
+#define HI(x) (x >> 8)
+#define ROW_MAX 25
+#define COL_MAX 80
+
+#define BLK 0
+#define BLU 1
+#define GRN 2
+#define CYN 3
+#define RED 4
+#define MAG 5
+#define BRN 6
+#define LGR 7
+#define DGR 8
+#define LBL 9
+#define LGR 10
+#define LCY 11
+#define LRD 12
+#define LMG 13
+#define LBR 14
+#define WHT 15
+uint16_t *video_memory = (uint16_t *)FRAMEB;
+
+uint8_t cursor_x = 0;
+uint8_t cursor_y = 0;
+
+static void move_cursor()
 {
-    offset /= 2;
-    p_write_byte(VGA_CTRL_REGISTER, VGA_OFFSET_HIGH);
-    p_write_byte(VGA_DATA_REGISTER, (unsigned char)(offset >> 8));
-    p_write_byte(VGA_CTRL_REGISTER, VGA_OFFSET_LOW);
-    p_write_byte(VGA_DATA_REGISTER, (unsigned char)(offset & 0xff));
+    uint16_t loc = cursor_y * 80 + cursor_x;
+    p_write_byte(C_REG, C_SET_HIGH);
+    p_write_byte(D_REG, HI(loc));
+    p_write_byte(C_REG, C_SET_LOW);
+    p_write_byte(D_REG, loc);
 }
 
-int get_cursor()
+static void scroll()
 {
-    p_write_byte(VGA_CTRL_REGISTER, VGA_OFFSET_HIGH);
-    int offset = p_read_byte(VGA_DATA_REGISTER) << 8;
-    p_write_byte(VGA_CTRL_REGISTER, VGA_OFFSET_LOW);
-    offset += p_read_byte(VGA_DATA_REGISTER);
-    return offset * 2;
+    uint8_t attribute = (0 << 4) | (15 & 0x0F);
+    uint8_t blank = 0x20 | (attribute << 8);
+
+    if (cursor_y >= ROW_MAX)
+    {
+        int i;
+        for (i = 0; i < 24 * 80; i++)
+        {
+            video_memory[i] = video_memory[i + 80];
+        }
+        for (i = 24 * 80; i < 25 * 80; i++)
+        {
+            video_memory[i] = blank;
+        }
+        cursor_y = 24;
+    }
 }
 
-void print_backspace()
+void kputc(char c)
 {
-    int offset = get_cursor() - 2;
-    set_char('\0', offset);
-    set_cursor(offset);
+    uint8_t back = BLK;
+    uint8_t fore = WHT;
+
+    uint16_t attr = ((back << 4) | (fore & 0x0F)) << 8;
+    uint16_t *location;
+    if (c == 0x08 && cursor_x)
+    {
+        cursor_x--;
+        location = video_memory + GET_OFFSET(cursor_x, cursor_y);
+        *location = 0x20 | attr;
+    }
+    else if (c == 0x09)
+    {
+        cursor_x = (cursor_x + 8) & (~8 - 1);
+    }
+    else if (c == '\r')
+    {
+        cursor_x = 0;
+    }
+    else if (c == '\n')
+    {
+        cursor_x = 0;
+        cursor_y++;
+    }
+    else if (c >= ' ')
+    {
+        location = video_memory + GET_OFFSET(cursor_x, cursor_y);
+        *location = c | attr;
+        cursor_x++;
+    }
+
+    if (cursor_x >= 80)
+    {
+        cursor_x = 0;
+        cursor_y++;
+    }
+    scroll();
+    move_cursor();
 }
 
-void set_char(char c, int offset)
+void kcls()
 {
-    unsigned char *vmem = (unsigned char *)VIDEO_ADDRESS;
-    vmem[offset] = c;
-    vmem[offset + 1] = WHITE_ON_BLACK;
+    uint8_t attribute = (0 << 4) | (15 & 0x0F);
+    uint8_t blank = 0x20 | (attribute << 8);
+
+    int i;
+    for (i = 24 * 80; i < 25 * 80; i++)
+    {
+        video_memory[i] = blank;
+    }
+    cursor_x = 0;
+    cursor_y = 0;
 }
 
-void print_string(char *str)
+void kputs(char *c)
 {
-    int offset = get_cursor();
     int i = 0;
-    // set_char(str[0], 0);
-    while (str[i] != 0)
-    {
-        if (offset >= MAX_ROWS * MAX_COLS * 2)
-            offset = scroll_ln(offset);
-
-        if (str[i] == '\n')
-        {
-            offset = print_newline_at(offset);
-        }
-        else
-        {
-            set_char(str[i], offset);
-            offset += 2;
-        }
-        i++;
-    }
-    set_cursor(offset);
-    // set_char('9', 0);
+    while (c[i])
+        kputc(c[i++]);
 }
-
-int get_row_from_offset(int offset)
+void kputl(char *c)
 {
-    return offset / (2 * MAX_COLS);
-}
-
-int get_offset(int col, int row)
-{
-    return 2 * (row * MAX_COLS + col);
-}
-
-int print_newline_at(int offset)
-{
-    return get_offset(0, get_row_from_offset(offset) + 1);
-}
-
-int print_newline()
-{
-    int offset = get_cursor();
-    return print_newline_at(offset);
-}
-
-int scroll_ln(int offset)
-{
-    memcpy_io(
-        (char *)(get_offset(0, 1) + VIDEO_ADDRESS),
-        (char *)(get_offset(0, 0) + VIDEO_ADDRESS),
-        MAX_COLS * (MAX_ROWS - 1) * 2);
-    for (int col = 0; col < MAX_COLS; col++)
-    {
-        set_char(' ', get_offset(col, MAX_ROWS - 1));
-    }
-    return offset - 2 * MAX_COLS;
-}
-
-void clear_screen()
-{
-    for (int i = 0; i < MAX_COLS; ++i)
-    {
-        set_char(' ', i * 2);
-    }
-    set_cursor(get_offset(0, 0));
+    kputs(c);
+    kputs("\r\n");
 }
