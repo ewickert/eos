@@ -35,7 +35,8 @@ void kerr_named_dword(char *name, uint32_t n)
 {
     kerr(name);
     kerr("=0x");
-    char n_str[5];
+    char n_str[20];
+    memset(n_str, '\0', 10);
     citoa(n, n_str, 16);
     kerr_ln(n_str);
     // kerr_lpad(n_str, '0', 4);

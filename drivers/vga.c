@@ -1,8 +1,9 @@
 #include "vga.h"
 #include "io.h"
+#include "../lib/stdlib.h"
 #include <stdint.h>
 
-#define FRAMEB 0xB8000
+#define FRAMEB 0xC03FF000;
 #define C_REG 0x3D4
 #define C_SET_HIGH 14
 #define C_SET_LOW 15
@@ -123,6 +124,12 @@ void kputs(char *c)
     int i = 0;
     while (c[i])
         kputc(c[i++]);
+}
+void kputi(uint32_t i)
+{
+    char s[9];
+    citoa(i, s, 16);
+    kputs(s);
 }
 void kputl(char *c)
 {

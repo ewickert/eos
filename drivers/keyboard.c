@@ -28,6 +28,7 @@ const char alt_codes[] =
 
 void init_keyboard()
 {
+    kerr_ln("registered kboard");
     caps = false;
     register_interrupt_handler(33, keyboard_callback);
 }

@@ -5,10 +5,10 @@
 #include <stdint.h>
 
 uint32_t tick = 0;
-static void timer_callback(registers_t r)
+static void timer_callback(registers_t *r)
 {
     // tick++;
-    //  kerr_named_dword("tick", tick);
+    // kerr_named_dword("tick", tick);
 }
 
 void init_timer(uint32_t freq)
